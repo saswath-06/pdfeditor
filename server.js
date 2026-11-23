@@ -9,16 +9,44 @@ const { spawn } = require('child_process');
 const { buildPdf } = require('./lib/build-pdf');
 const { buildSample } = require('./lib/sample');
 
+// Railway sets RAILWAY_PROJECT_ID in every deployment. There the app must accept
+// outside connections, keep its files on the attached volume, and require a password.
+const ON_RAILWAY = !!process.env.RAILWAY_PROJECT_ID;
 const PORT = Number(process.env.PORT) || 5180;
-const HOST = process.env.HOST || '127.0.0.1';
-const DATA = process.env.FOLIO_DATA || path.join(__dirname, 'data');
+const HOST = process.env.HOST || (ON_RAILWAY ? '0.0.0.0' : '127.0.0.1');
+const DATA = process.env.FOLIO_DATA || process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
+const PASSWORD = process.env.FOLIO_PASSWORD || '';
 const UPLOADS = path.join(DATA, 'uploads');
 const SESSION = path.join(DATA, 'session.json');
 const ID = /^[a-f0-9]{24}$/;
+
+if (ON_RAILWAY && !PASSWORD) {
+  console.error('FOLIO_PASSWORD is not set. Add it under the service\'s Variables tab in Railway; '
+    + 'without it anyone with the URL could read your files.');
+  process.exit(1);
+}
+if (ON_RAILWAY && !process.env.FOLIO_DATA && !process.env.RAILWAY_VOLUME_MOUNT_PATH)
+  console.warn('No volume attached: uploads and autosave will be lost on every redeploy.');
 fs.mkdirSync(UPLOADS, { recursive: true });
 
 const app = express();
 app.disable('x-powered-by');
+
+// Health check for Railway; it sits before the password so the check gets a 200.
+app.get('/healthz', (req, res) => res.send('ok'));
+
+// HTTP Basic auth when FOLIO_PASSWORD is set. Any username works; the browser
+// asks once and sends the credentials with every later request.
+if (PASSWORD) {
+  const digest = s => crypto.createHash('sha256').update(s).digest();
+  const want = digest(PASSWORD);
+  app.use((req, res, next) => {
+    const m = /^Basic\s+(.+)$/i.exec(req.get('authorization') || '');
+    const pass = m ? Buffer.from(m[1], 'base64').toString('utf8').replace(/^[^:]*:/, '') : '';
+    if (m && crypto.timingSafeEqual(digest(pass), want)) return next();
+    res.set('WWW-Authenticate', 'Basic realm="Folio", charset="UTF-8"').status(401).send('Password required');
+  });
+}
 const pkgDir = name => path.dirname(require.resolve(name + '/package.json'));
 const forever = { maxAge: '30d', immutable: true };
 app.use(express.static(path.join(__dirname, 'public')));
@@ -123,6 +151,7 @@ app.post('/api/export', express.json({ limit: '300mb' }), async (req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
+  if (ON_RAILWAY) return console.log(`Folio listening on ${HOST}:${PORT}, data in ${DATA}`);
   const url = `http://localhost:${PORT}`;
   console.log(`\n  Folio is running at ${url}\n  Your files and autosave live in ${DATA}\n  Press Ctrl+C to stop.\n`);
   if (process.env.FOLIO_NO_OPEN) return;

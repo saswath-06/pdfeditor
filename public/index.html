@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDF editor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230b4f8a%22/%3E%3Cpath d=%22M10 7h9l4 4v14H10z%22 fill=%22%23fff%22/%3E%3Ccircle cx=%2222%22 cy=%2223%22 r=%223.5%22 fill=%22%23c1121f%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/vendor/fonts/literata/400.css"><link rel="stylesheet" href="/vendor/fonts/literata/600.css"><link rel="stylesheet" href="/vendor/fonts/caveat/600.css">
+<link rel="stylesheet" href="/style.css">
+</head><body>
+<header>
+ <div class="brand"><b>PDF EDITOR<i>.</i></b><small><span id="fname">Loading</span> · <span id="sstat">Connecting</span></small></div>
+ <div class="grp">
+  <button class="b" id="bOpen" data-ic="open" title="Open a PDF"><span class="lbl">Open</span></button>
+  <button class="b" id="bAdd" data-ic="add" title="Append pages from other PDFs"><span class="lbl">Merge</span></button>
+  <button class="b" id="bNew" data-ic="blank" title="Close this document and start over with the sample"><span class="lbl">Reset</span></button>
+ </div>
+ <div class="grp hg">
+  <button class="b" id="bUndo" data-ic="undo" aria-label="Undo" title="Undo (Ctrl+Z)"></button>
+  <button class="b" id="bRedo" data-ic="redo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)"></button>
+ </div>
+ <form class="search" id="sform" role="search">
+  <span data-ic="search" style="display:flex;color:var(--mut)"></span>
+  <input id="q" type="search" placeholder="Find text" aria-label="Find text" autocomplete="off">
+  <span id="hitlab"></span>
+  <button class="b" type="button" id="hitNext" data-ic="down" aria-label="Next match" title="Next match (Enter)"></button>
+  <button class="b" type="button" id="hitMark" data-ic="hl" aria-label="Highlight every match" title="Highlight every match"></button>
+ </form>
+ <div class="grp zg">
+  <button class="b" id="zOut" aria-label="Zoom out" title="Zoom out (-)">−</button>
+  <select id="zoom" aria-label="Zoom"><option value="fit">Fit</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select>
+  <button class="b" id="zIn" aria-label="Zoom in" title="Zoom in (+)">+</button>
+ </div>
+ <button class="b save" id="save" data-ic="save" title="Save the edited PDF (Ctrl+S)"><span>Save PDF</span></button>
+ <input type="file" id="fOpen" accept="application/pdf,.pdf" hidden>
+ <input type="file" id="fAdd" accept="application/pdf,.pdf" multiple hidden>
+ <input type="file" id="fImg" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+</header>
+<nav class="tools" aria-label="Tools">
+ <button class="tl" data-tool="select" data-ic="select" title="Select and move (V)"><span>Select</span></button>
+ <button class="tl" data-tool="text" data-ic="text" title="Add text (T)"><span>Text</span></button>
+ <button class="tl" data-tool="pen" data-ic="pen" title="Freehand draw (P)"><span>Draw</span></button>
+ <button class="tl" data-tool="hl" data-ic="hl" title="Highlight (H)"><span>Highlight</span></button>
+ <button class="tl" data-tool="box" data-ic="box" title="Rectangle (R)"><span>Box</span></button>
+ <button class="tl" data-tool="ellipse" data-ic="ellipse" title="Ellipse (O)"><span>Ellipse</span></button>
+ <button class="tl" data-tool="arrow" data-ic="arrow" title="Arrow (A)"><span>Arrow</span></button>
+ <button class="tl" data-tool="white" data-ic="white" title="Whiteout (W)"><span>Whiteout</span></button>
+ <button class="tl" data-tool="sign" data-ic="sign" title="Sign"><span>Sign</span></button>
+ <button class="tl" data-tool="image" data-ic="image" title="Insert image"><span>Image</span></button>
+ <span class="sep"></span>
+ <div class="props">
+  <div class="grp" id="sws"></div>
+  <input type="color" id="colorIn" aria-label="Custom colour">
+  <label id="sizeL"><span id="sizeName">Width</span><input type="range" id="size" min="1" max="24"><output id="sizeOut"></output></label>
+  <select id="fontSel" aria-label="Font"><option value="sans">Helvetica</option><option value="serif">Times</option><option value="mono">Courier</option></select>
+  <button class="b" id="delA" data-ic="trash" title="Delete (Del)"><span>Delete</span></button>
+  <button class="b" id="newSig">New signature</button>
+  <span class="hint" id="hint"></span>
+ </div>
+ <span class="ind" id="ind"></span>
+</nav>
+<main>
+ <aside>
+  <div class="pact" aria-label="Page actions">
+   <button class="b" data-pa="rotl" data-ic="rotl" aria-label="Rotate left" title="Rotate left"></button>
+   <button class="b" data-pa="rotr" data-ic="rotr" aria-label="Rotate right" title="Rotate right"></button>
+   <button class="b" data-pa="up" data-ic="up" aria-label="Move earlier" title="Move earlier"></button>
+   <button class="b" data-pa="down" data-ic="down" aria-label="Move later" title="Move later"></button>
+   <button class="b" data-pa="dup" data-ic="dup" aria-label="Duplicate" title="Duplicate"></button>
+   <button class="b" data-pa="blank" data-ic="blank" aria-label="Insert blank page after" title="Insert blank page after"></button>
+   <button class="b" data-pa="extract" data-ic="extract" aria-label="Save selected pages as a new PDF" title="Save selected pages as a new PDF"></button>
+   <button class="b" data-pa="del" data-ic="trash" aria-label="Delete pages" title="Delete pages"></button>
+  </div>
+  <div id="thumbs" aria-label="Pages. Click to jump, Ctrl or Shift click to select several, drag to reorder"></div>
+ </aside>
+ <div id="view" data-tool="select">
+  <div id="pages"></div>
+  <div class="empty" id="empty" hidden><b>No pages here</b>Open a PDF, or drop one anywhere on this window.<br><br><button class="b save" id="bOpen2">Open a PDF</button></div>
+ </div>
+</main>
+<div class="modal" id="sigM" role="dialog" aria-modal="true" aria-labelledby="sigT"><div class="card">
+ <h2 id="sigT">Your signature</h2>
+ <p>Draw it with a mouse, trackpad or finger, or type your name. It stays in this browser tab only.</p>
+ <div class="row"><button class="b" data-sm="draw" aria-pressed="true">Draw</button><button class="b" data-sm="type" aria-pressed="false">Type</button><span class="grow"></span>
+  <button class="sw" data-ink="#10131a" aria-label="Black ink" aria-pressed="true" style="background:#10131a"></button><button class="sw" data-ink="#0b4f8a" aria-label="Blue ink" aria-pressed="false" style="background:#0b4f8a"></button></div>
+ <input type="text" id="sigName" placeholder="Type your name" aria-label="Your name" hidden>
+ <canvas class="pad" id="pad"></canvas>
+ <div class="row"><button class="b" id="sigClear">Clear</button><span class="grow"></span><button class="b" id="sigCancel">Cancel</button><button class="b save" id="sigUse">Use signature</button></div>
+</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="/vendor/pdfjs/pdf.min.js"></script>
+<script src="/app.js"></script>
+</body></html>
